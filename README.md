@@ -1,5 +1,5 @@
 # LiteBroker
-A NET Core implementation of a simple broker-based pub/sub framework
+LiteBroker is a NET Core implementation of an uncomplicated, lightweight broker-based pub/sub framework and ported from SimpleBroker.
 
 If you want to subscribe:
 ~~~
