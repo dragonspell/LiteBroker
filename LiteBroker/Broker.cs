@@ -7,7 +7,7 @@ namespace LiteBroker
 {
     public static class Broker
     {
-        private readonly object locker = new object();
+        private static readonly object locker = new object();
 
         static Broker()
         {
