@@ -7,6 +7,8 @@ namespace LiteBroker
 {
     public static class Broker
     {
+        private readonly object locker = new object();
+
         static Broker()
         {
             Subscriptions = new List<Subscription>();
@@ -15,39 +17,48 @@ namespace LiteBroker
         private static List<Subscription> Subscriptions { get; set; }
 
         public static void Subscribe<T>(this object sender, Action<T> action)
-        {    
-            if (IsSubscribed<T>(sender))
-                return;
+        {   
+            lock(locker)
+            {
+                if (IsSubscribed<T>(sender))
+                    return;
 
-            var subscription = new Subscription(sender, action, typeof(T));
-            Subscriptions.Add(subscription);
+                var subscription = new Subscription(sender, action, typeof(T));
+                Subscriptions.Add(subscription);
+            }
         }
 
         public static void Unsubscribe<T>(this object sender)
         {
-            var subscription = Subscriptions.FirstOrDefault(x => (x.Subscriber.Target == sender && x.Type == typeof(T)));
-            
-            if (subscription != null)
-                Subscriptions.Remove(subscription);
+            lock(locker)
+            {
+                var subscription = Subscriptions.FirstOrDefault(x => (x.Subscriber.Target == sender && x.Type == typeof(T)));
+                
+                if (subscription != null)
+                    Subscriptions.Remove(subscription);
+            }
         }
 
         public static void Publish<T>(this T sender)
         {
-            Cleanup();
+            lock(locker)
+            {
+                Cleanup();
 
-            var subscriptions = Subscriptions.Where(x => x.Type.IsAssignableFrom(sender.GetType()));
+                var subscriptions = Subscriptions.Where(x => x.Type.IsAssignableFrom(sender.GetType()));
 
-            foreach (var subscription in subscriptions) 
-                ((Action<T>)subscription.Action)(sender);
+                foreach (var subscription in subscriptions) 
+                    ((Action<T>)subscription.Action)(sender);
+            }
         }
         
-        public static bool IsSubscribed<T>(this object sender)
+        private static bool IsSubscribed<T>(this object sender)
         {
             var subscription = Subscriptions.FirstOrDefault(x => (x.Subscriber.Target == sender && x.Type == typeof(T)));
             return subscription != null;
         }
 
-        public static void Cleanup()
+        private static void Cleanup()
         { 
             Subscriptions.RemoveAll(x => { return !x.Subscriber.IsAlive; });
         }
